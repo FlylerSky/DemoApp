@@ -1,21 +1,15 @@
-name: Build APK
+name: Build APK (no wrapper)
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -29,27 +23,15 @@ jobs:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
 
-    - name: Make gradlew executable
-      # If gradlew is present but not executable, this fixes it.
-      run: |
-        if [ -f ./gradlew ]; then
-          chmod +x ./gradlew
-          echo "gradlew set as executable"
-        else
-          echo "gradlew not found in repo, continuing"
-        fi
+    - name: Install Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: '8.4'   # hoặc bỏ để lấy latest
 
-    - name: Build Debug APK
-      # Use wrapper if present; wrapper will be used after chmod.
-      run: |
-        if [ -f ./gradlew ]; then
-          ./gradlew assembleDebug --no-daemon
-        else
-          echo "gradlew not found — attempting to run Gradle via installed Gradle (may fail if not available)"
-          gradle assembleDebug --no-daemon
-        fi
+    - name: Build debug APK using installed Gradle
+      run: gradle assembleDebug --no-daemon
 
     - name: Upload APK artifact (if exists)
       uses: actions/upload-artifact@v4
