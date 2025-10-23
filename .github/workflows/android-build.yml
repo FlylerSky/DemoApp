@@ -5,11 +5,17 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -26,12 +32,26 @@ jobs:
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
 
     - name: Make gradlew executable
-      run: chmod +x ./gradlew
+      # If gradlew is present but not executable, this fixes it.
+      run: |
+        if [ -f ./gradlew ]; then
+          chmod +x ./gradlew
+          echo "gradlew set as executable"
+        else
+          echo "gradlew not found in repo, continuing"
+        fi
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+      # Use wrapper if present; wrapper will be used after chmod.
+      run: |
+        if [ -f ./gradlew ]; then
+          ./gradlew assembleDebug --no-daemon
+        else
+          echo "gradlew not found — attempting to run Gradle via installed Gradle (may fail if not available)"
+          gradle assembleDebug --no-daemon
+        fi
 
-    - name: Upload APK
+    - name: Upload APK artifact (if exists)
       uses: actions/upload-artifact@v4
       with:
         name: app-debug-apk
